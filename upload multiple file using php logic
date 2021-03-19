@@ -1,1 +1,147 @@
 
+In this file we will make a multi-file Upload PHP script with verification for the file extension and size, to make a secure upload and save the file information into a MySQL database.
+
+This logic will make an image upload system . This can be used to upload images, PDF's, Doc's, logs or any file types make sure you do change in the script.
+
+If are new to file uploading you can check our article on Simple File Upload with PHP, to get started with basic.
+
+The HTML
+This is a simple HTML forum, there won't be any styles, since we'r focusing on the PHP upload.
+
+
+<form action="" method="POST" enctype="multipart/form-data">
+ <input type="file" name="files[]" multiple="" />
+ <input type="submit"/>
+</form>
+Make sure to make add enctype="multipart/form-data ,type="file" and most importantly name="files[]" to enable multi files selection possible.
+
+PHP
+Moving on to the PHP codes. we can get started with isset($_FILES['']) in the if condition to make sure some file is selected and we are good to go with the upload.
+
+$_FILES[' '] will contain the information of each file, but when more that one file are selected it will have the details of each file enclosed inside another array.
+
+To see how data is stored in array refer our article on Simple File Upload with PHP,.
+
+To access them we will be using foreach foreach loop.
+
+
+foreach($_FILES['files']['tmp_name'] as $key => $tmp_name ){
+    $file_name = $key.$_FILES['files']['name'][$key];
+    $file_size =$_FILES['files']['size'][$key];
+    $file_tmp =$_FILES['files']['tmp_name'][$key];
+    $file_type=$_FILES['files']['type'][$key];
+}
+                
+Now to make the verification part. First we will make an array with the allowed extensions in it.
+
+
+$extensions = array("jpeg","jpg","png");            
+            
+As we are making an image upload, we need to allow only the image extensions i.e. JPEG, PNG ... etc . You can add the appropriate extensions that you need. To get the extension of the uploaded file we will use the file name not file Type, to get the extension we will use PHP explode() & end().
+
+Extensions can also be in UPPER case or LOWER case to overcome the problem we will get them converted into lower case or upper case as you mentioned in the $extensions array.
+
+Using PHP in_array() to verify if the uploaded file is allowed or not, it's almost done.
+
+
+$file_ext=explode('.',$_FILES['image']['name'][$key])	;
+$file_ext=end($file_ext);  
+$file_ext=strtolower(end(explode('.',$_FILES['image']['name'][$key])));  
+if(in_array($file_ext,$extensions ) === false){
+ $errors[]="extension not allowed";
+}            
+To limit the upload file size, $_FILES['image']['size'] is to be used to get the file size.
+
+
+if($_FILES['image']['size'][$key] > 2097152){
+ $errors[]='File size must be less tham 2 MB';
+}	            
+   
+SQL
+That is all with upload part, the files are ready to be moved to a folder and store the file details in MySQL table's if necessary. In this tutorial we use a MySQL table with 4 rows
+
+
+CREATE TABLE `upload_data` (
+  `ID` int(5) NOT NULL AUTO_INCREMENT,
+  `USER_CODE` int(4) unsigned zerofill NOT NULL,
+  `FILE_NAME` varchar(200) NOT NULL,
+  `FILE_SIZE` varchar(200) NOT NULL,
+  `FILE_TYPE` varchar(200) NOT NULL,
+  PRIMARY KEY (`ID`)
+)
+USER_CODE is unique for each user if you have a user based application or any unique ID that can identify each items.
+
+
+$query="INSERT into upload_data (`EMP_CODE`,`FILE_NAME`,`FILE_SIZE`,`FILE_TYPE`) VALUES('$codes','$file_name','$file_size','$file_type'); ";
+# Make sure that the query is not executed unless the $errors array is empty.
+mysql_query($query);
+    
+Moving The Files
+File uploaded will be allocated space in the temporary location as mentioned in the php.ini. It is necessary to move the file from the temporary location to another in order to use it again. You can get the file moved to another location using move_uploaded_file(), in here we will move it to an images folder, make sure the directory exists, since move_uploaded_file() cannot create a directory. So it recommended to verify for existence of directory.
+
+
+if(is_dir($dir)==false){
+ move_uploaded_file($file_tmp,images/".$file_name);
+}
+If you plan to create a directory for each user, you can use mkdir(DIR NAME,PERMISION)
+
+
+if(is_dir($dir)==false){ 
+ mkdir("$dir", 0700);
+}
+   
+To Rename The File
+Users can create a problem if there exists another file with same name, since move_uploaded_file() cannot move the file if another file existed. You can get the file renamed or rename all the files uploaded with a series number which can prevent this problem completely. With rename(OLD_FILE_NAME,NEW_FILE_NAME).
+
+OLD_FILE_PATH file name with extension & location and NEW_FILE_NAME new name.
+
+
+#Check if a file of same name exist
+if(is_dir("emp_data/$codes/".$file_name)==false){
+ move_uploaded_file($file_tmp,"$desired_dir/".$file_name);
+}else{
+ rename($file_tmp, "$desired_dir/".$file_name);
+ # rename can move the file along with renaming it
+}
+Winding
+You can use the following codes to upload files of any size & type, make sure you have enough space on the server. The complete code for the project.
+
+
+<?php
+if(isset($_FILES['files'])){
+ $errors= array();
+   foreach($_FILES['files']['tmp_name'] as $key => $tmp_name ){
+	$file_name = $key.$_FILES['files']['name'][$key];
+	$file_size =$_FILES['files']['size'][$key];
+	$file_tmp =$_FILES['files']['tmp_name'][$key];
+	$file_type=$_FILES['files']['type'][$key];	
+        if($file_size > 2097152){
+          $errors[]='File size must be less than 2 MB';
+        }		
+        $query="INSERT into upload_data (`USER_ID`,`FILE_NAME`,`FILE_SIZE`,`FILE_TYPE`) VALUES('$user_id','$file_name','$file_size','$file_type'); ";
+        $desired_dir="user_data";
+        if(empty($errors)==true){
+          if(is_dir($desired_dir)==false){
+            mkdir("$desired_dir", 0700);		// Create directory if it does not exist
+          }
+          if(is_dir("$desired_dir/".$file_name)==false){
+              move_uploaded_file($file_tmp,"user_data/".$file_name);
+          }else{
+         //rename the file if another one exist
+              $new_dir="user_data/".$file_name.time();
+               rename($file_tmp,$new_dir) ;				
+           }
+            mysql_query($query);			
+        }else{
+           print_r($errors);
+        }
+    }
+    if(empty($error)){
+     echo "Success";
+    }
+}
+?>
+<form action="" method="POST" enctype="multipart/form-data">
+ <input type="file" name="files[]" multiple="" />
+ <input type="submit"/>
+</form>
